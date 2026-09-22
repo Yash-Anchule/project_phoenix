@@ -1,0 +1,49 @@
+We initially explored several AI project ideas that could combine 
+technologies such as FastAPI, LangGraph, n8n, RAG, GraphRAG, embeddings, Neo4j, 
+Redis, Langfuse and Docker, including production incident investigation, release-impact 
+tracking, customer-support analysis, job-market intelligence, research-paper analysis, 
+GitHub intelligence and esports intelligence. We gradually removed many of these because 
+they depended on private or difficult-to-obtain real-world data such as production logs,
+ customer tickets or company systems, while the goal was to build something 
+ independently using data that could realistically be collected or created ourselves.
+  We then moved toward a personalized AI assistant because it solves a problem we can 
+  actually own and grow over time. The first main component became a **Budget Agent**,
+   where PostgreSQL will handle structured financial data such as expenses, categories,
+    monthly budgets, thresholds and month-on-month/year-on-year comparisons, 
+while the backend will deterministically detect threshold breaches and generate alerts 
+instead of relying on the LLM for calculations. We specifically decided not to force Neo4j 
+into budgeting because a relational database is a much more natural fit for financial 
+transactions and aggregations. The second main component became a **Media Agent**, 
+initially starting only with **books** and later expanding to movies, web series and anime. 
+Neo4j fits naturally here because books can be connected through relationships such as 
+author, genre, series, themes and user interactions such as read, 
+liked, rated and wishlist. We considered making the third agent a 
+Google Calendar/planning agent, but decided to drop it because 
+simply creating calendar events did not feel interesting or 
+meaningful enough; the calendar notification itself is already handled by Google Calendar, 
+so it would not add enough value to the project. For the book system, we then clarified 
+that **recommendation and RAG are different problems**: embeddings/vector retrieval 
+can initially be used to find semantically similar books, while RAG can later be used
+ to explain why a particular book was recommended using book descriptions, reviews, 
+ summaries or personal notes. We also decided not to jump directly into GraphRAG. 
+ The initial recommendation system will use normal embedding-based semantic 
+ retrieval because it is simpler and is exactly the right starting point 
+ for learning embeddings and vector search. At the same time, Neo4j will maintain 
+ the broader book knowledge graph rather than storing only the top five recommendations; 
+ the recommendation system can then produce a top-five list using semantic similarity, 
+ while a separate graph-based recommendation approach can later produce another top-five 
+ list using relationships such as shared authors, genres, themes or series. 
+ This gives us a very useful comparison between **semantic recommendations 
+ and graph-based recommendations**, and eventually we can experiment with a hybrid ranking
+  that combines both. LangGraph will eventually act as the orchestration layer or 
+  supervisor that understands the user's request and routes it to the appropriate
+   agent or tool, rather than being used unnecessarily for every database operation. 
+   FastAPI will serve as the backend, Streamlit can be the initial frontend,
+    Redis can later be introduced for caching things such as expensive recommendations or 
+    frequently requested information, Langfuse can observe and trace the LLM/agent workflows, 
+    and n8n can later be used for external ingestion or automation such as importing new book metadata. 
+    The current trimmed-down vision is therefore a **personal AI assistant with two meaningful domains: 
+    Budget and Media, with Media starting specifically from books**. The first major technical focus inside Media is: 
+    **add books → store metadata and relationships → generate embeddings → perform semantic retrieval → recommend top five books → later add Neo4j-based recommendations → compare semantic vs graph recommendations → eventually combine them and use RAG to explain the recommendations**.
+     Movies, anime and other media can be added later once the book system is working well, 
+     allowing the project to grow naturally instead of trying to force every technology into version one.
