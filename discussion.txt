@@ -35,15 +35,15 @@ can initially be used to find semantically similar books, while RAG can later be
  list using relationships such as shared authors, genres, themes or series. 
  This gives us a very useful comparison between **semantic recommendations 
  and graph-based recommendations**, and eventually we can experiment with a hybrid ranking
-  that combines both. LangGraph will eventually act as the orchestration layer or 
-  supervisor that understands the user's request and routes it to the appropriate
+that combines both. LangGraph will eventually act as the orchestration layer or 
+supervisor that understands the user's request and routes it to the appropriate
    agent or tool, rather than being used unnecessarily for every database operation. 
    FastAPI will serve as the backend, Streamlit can be the initial frontend,
-    Redis can later be introduced for caching things such as expensive recommendations or 
+Redis can later be introduced for caching things such as expensive recommendations or 
     frequently requested information, Langfuse can observe and trace the LLM/agent workflows, 
     and n8n can later be used for external ingestion or automation such as importing new book metadata. 
     The current trimmed-down vision is therefore a **personal AI assistant with two meaningful domains: 
     Budget and Media, with Media starting specifically from books**. The first major technical focus inside Media is: 
     **add books → store metadata and relationships → generate embeddings → perform semantic retrieval → recommend top five books → later add Neo4j-based recommendations → compare semantic vs graph recommendations → eventually combine them and use RAG to explain the recommendations**.
      Movies, anime and other media can be added later once the book system is working well, 
-     allowing the project to grow naturally instead of trying to force every technology into version one.
+allowing the project to grow naturally instead of trying to force every technology into version one.
