@@ -1,49 +1,1000 @@
-We initially explored several AI project ideas that could combine 
-technologies such as FastAPI, LangGraph, n8n, RAG, GraphRAG, embeddings, Neo4j, 
-Redis, Langfuse and Docker, including production incident investigation, release-impact 
-tracking, customer-support analysis, job-market intelligence, research-paper analysis, 
-GitHub intelligence and esports intelligence. We gradually removed many of these because 
-they depended on private or difficult-to-obtain real-world data such as production logs,
- customer tickets or company systems, while the goal was to build something 
- independently using data that could realistically be collected or created ourselves.
-  We then moved toward a personalized AI assistant because it solves a problem we can 
-  actually own and grow over time. The first main component became a **Budget Agent**,
-   where PostgreSQL will handle structured financial data such as expenses, categories,
-    monthly budgets, thresholds and month-on-month/year-on-year comparisons, 
-while the backend will deterministically detect threshold breaches and generate alerts 
-instead of relying on the LLM for calculations. We specifically decided not to force Neo4j 
-into budgeting because a relational database is a much more natural fit for financial 
-transactions and aggregations. The second main component became a **Media Agent**, 
-initially starting only with **books** and later expanding to movies, web series and anime. 
-Neo4j fits naturally here because books can be connected through relationships such as 
-author, genre, series, themes and user interactions such as read, 
-liked, rated and wishlist. We considered making the third agent a 
-Google Calendar/planning agent, but decided to drop it because 
-simply creating calendar events did not feel interesting or 
-meaningful enough; the calendar notification itself is already handled by Google Calendar, 
-so it would not add enough value to the project. For the book system, we then clarified 
-that **recommendation and RAG are different problems**: embeddings/vector retrieval 
-can initially be used to find semantically similar books, while RAG can later be used
- to explain why a particular book was recommended using book descriptions, reviews, 
- summaries or personal notes. We also decided not to jump directly into GraphRAG. 
- The initial recommendation system will use normal embedding-based semantic 
- retrieval because it is simpler and is exactly the right starting point 
- for learning embeddings and vector search. At the same time, Neo4j will maintain 
- the broader book knowledge graph rather than storing only the top five recommendations; 
- the recommendation system can then produce a top-five list using semantic similarity, 
- while a separate graph-based recommendation approach can later produce another top-five 
- list using relationships such as shared authors, genres, themes or series. 
- This gives us a very useful comparison between **semantic recommendations 
- and graph-based recommendations**, and eventually we can experiment with a hybrid ranking
-that combines both. LangGraph will eventually act as the orchestration layer or 
-supervisor that understands the user's request and routes it to the appropriate
-   agent or tool, rather than being used unnecessarily for every database operation. 
-   FastAPI will serve as the backend, Streamlit can be the initial frontend,
-Redis can later be introduced for caching things such as expensive recommendations or 
-    frequently requested information, Langfuse can observe and trace the LLM/agent workflows, 
-    and n8n can later be used for external ingestion or automation such as importing new book metadata. 
-    The current trimmed-down vision is therefore a **personal AI assistant with two meaningful domains: 
-    Budget and Media, with Media starting specifically from books**. The first major technical focus inside Media is: 
-    **add books → store metadata and relationships → generate embeddings → perform semantic retrieval → recommend top five books → later add Neo4j-based recommendations → compare semantic vs graph recommendations → eventually combine them and use RAG to explain the recommendations**.
-     Movies, anime and other media can be added later once the book system is working well, 
-allowing the project to grow naturally instead of trying to force every technology into version one.
+# Project Phoenix — Current Progress & Next Steps
+
+I am building **Project Phoenix**, a personal AI assistant and serious portfolio project.
+
+## Learning / Teaching Preference
+
+I want to understand **why** we are using each technology instead of just copying code.
+
+Please teach me with this pattern:
+
+**Concept → Why → Small implementation → Test → Debug → Move forward**
+
+Avoid huge code dumps. Prefer paragraph-style explanations because long scrolling makes me lose focus.
+
+When I say I want to debug something myself, give me a hint or concept first instead of immediately giving the exact fix.
+
+Keep the tone casual/conversational.
+
+---
+
+# Overall Long-Term Architecture
+
+The broad architecture we are aiming toward is:
+
+```text
+User / Streamlit
+        ↓
+FastAPI
+        ↓
+LangGraph Supervisor
+        ↓
+Budget Agent → PostgreSQL
+        ↓
+Media Agent → Neo4j
+```
+
+Future technologies we may introduce later:
+
+- RAG / embeddings
+- Langfuse
+- Redis
+- Docker
+- n8n
+- MCP
+
+**Important:** Do NOT jump to these technologies yet. The current priority is understanding and building the backend foundation properly.
+
+---
+
+# Current Backend Stack
+
+Currently learning/building with:
+
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- Pydantic
+- Docker
+
+PostgreSQL is running in Docker using:
+
+```text
+personal_ai_postgres
+```
+
+Database:
+
+```text
+personal_ai
+```
+
+FastAPI runs with:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+I understand:
+
+```text
+app.main:app
+```
+
+means:
+
+- `app.main` → Python module
+- `app` → FastAPI application object
+
+---
+
+# SQLAlchemy Concepts Covered
+
+I understand the basic database request flow:
+
+```text
+FastAPI request
+      ↓
+SQLAlchemy Session
+      ↓
+Engine
+      ↓
+Connection Pool
+      ↓
+PostgreSQL
+```
+
+Mental model:
+
+**Engine** manages database connectivity/connections.
+
+**Session** is a short-lived workspace through which database operations are performed.
+
+**Session is NOT the connection pool.**
+
+I have learned:
+
+- `create_engine()`
+- `sessionmaker()`
+- SQLAlchemy `Base`
+- Declarative models
+- `Base.metadata.create_all(bind=engine)`
+- `SessionLocal()`
+- FastAPI `Depends(get_db)`
+- `get_db()` creates a Session, yields it, then closes it.
+
+---
+
+# Expense Model
+
+The SQLAlchemy Expense model represents the PostgreSQL `expenses` table.
+
+Conceptually:
+
+```text
+expenses
+---------
+id
+amount
+category
+spent_at
+```
+
+Important distinction:
+
+**SQLAlchemy model** → represents database structure.
+
+**Pydantic schema** → represents API input/output structure and validation.
+
+They have different responsibilities.
+
+---
+
+# CRUD Progress
+
+Basic Expense CRUD is complete.
+
+## CREATE
+
+POST endpoint:
+
+```text
+/add_test
+```
+
+The flow is:
+
+```text
+Request JSON
+   ↓
+Pydantic validation
+   ↓
+Create SQLAlchemy Expense object
+   ↓
+db.add(expense)
+   ↓
+db.commit()
+   ↓
+PostgreSQL
+```
+
+I understand:
+
+```python
+db.add(expense)
+```
+
+means the Session is tracking the new object.
+
+```python
+db.commit()
+```
+
+commits the transaction so the change becomes persistent.
+
+The endpoint currently returns a simple response and can be cleaned up later.
+
+---
+
+## READ — Get All
+
+GET all expenses is complete.
+
+I understand that the SQLAlchemy Session can be used to query/read multiple database records.
+
+---
+
+## READ — Get One
+
+Endpoint:
+
+```text
+GET /get_expense_id/{id}
+```
+
+Important implementation:
+
+```python
+result = db.get(Expenses, id)
+```
+
+`db.get(Model, primary_key)` retrieves a row by primary key.
+
+If the ID does not exist:
+
+```python
+db.get(...)
+```
+
+returns:
+
+```python
+None
+```
+
+Initially FastAPI returned `null`.
+
+I then changed the endpoint to raise:
+
+```python
+HTTPException(status_code=404, ...)
+```
+
+for nonexistent IDs.
+
+---
+
+## UPDATE
+
+UPDATE is complete.
+
+Current Pydantic schema uses optional fields so partial updates can be made.
+
+Concept:
+
+```python
+model_fields_set
+```
+
+tells us which fields were actually supplied by the client.
+
+Example:
+
+```json
+{
+  "amount": 700
+}
+```
+
+means only `amount` was supplied.
+
+I also learned:
+
+```python
+model_dump(exclude_unset=True)
+```
+
+returns only the fields actually provided.
+
+This lets us do partial updates:
+
+```python
+updates = data.model_dump(exclude_unset=True)
+
+for field, value in updates.items():
+    setattr(result, field, value)
+```
+
+Then:
+
+```python
+db.commit()
+```
+
+persists the modified SQLAlchemy object.
+
+Important mental model:
+
+`result` is the SQLAlchemy object tracked by the Session.
+
+---
+
+## DELETE
+
+DELETE is complete.
+
+Initially I used:
+
+```python
+db.execute(
+    delete(Expenses).where(Expenses.id == id)
+)
+db.commit()
+```
+
+This works.
+
+But because I had already fetched the object using:
+
+```python
+result = db.get(Expenses, id)
+```
+
+we decided the cleaner approach is:
+
+```python
+if result is None:
+    raise HTTPException(...)
+
+db.delete(result)
+db.commit()
+```
+
+Important Session operations learned:
+
+```text
+INSERT → db.add(object)
+READ   → db.get(...)
+DELETE → db.delete(object)
+
+Persist changes → db.commit()
+```
+
+---
+
+# Pydantic Validation
+
+Current schema is conceptually:
+
+```python
+from typing import Literal
+from pydantic import BaseModel
+from datetime import datetime
+
+class ExpensePydantic(BaseModel):
+    amount: int | None = None
+
+    category: Literal[
+        "restaurant",
+        "groceries",
+        "transportation",
+        "shopping",
+        "entertainment",
+        "health",
+        "utilities",
+        "rent",
+        "travel",
+        "subscriptions",
+        "other"
+    ] | None = None
+
+    spent_at: datetime | None = None
+```
+
+Important:
+
+```text
+int | None
+```
+
+means the value can be an integer or `None`.
+
+But:
+
+```text
+int | None = None
+```
+
+also makes the request field optional because it has a default.
+
+---
+
+# Expense Categories
+
+We finalized the current Phoenix v1 categories as:
+
+```text
+restaurant
+groceries
+transportation
+shopping
+entertainment
+health
+utilities
+rent
+travel
+subscriptions
+other
+```
+
+We changed:
+
+```text
+food → restaurant
+```
+
+because groceries already covers food bought for home.
+
+We removed:
+
+```text
+education
+```
+
+because we felt it was not necessary for the first version.
+
+For now, categories are simply properties of expenses.
+
+We are NOT creating a separate budget for each category.
+
+---
+
+# Why Literal for Now
+
+We discussed Python `Enum`.
+
+I asked why we should use Enum instead of `Literal`.
+
+Decision:
+
+**Keep using `Literal` for now.**
+
+`Literal` is sufficient for the current project because it says:
+
+> category must be one of these exact values.
+
+For example:
+
+```text
+"restaurant" → valid
+"groceries" → valid
+"restaurants" → invalid
+```
+
+Enum may become useful later if `ExpenseCategory` becomes a shared domain concept across many parts of the application, but there is no need to introduce it now just for the sake of architecture.
+
+---
+
+# Important Pydantic / FastAPI Validation Lesson
+
+I tested:
+
+```json
+{
+  "amount": 0,
+  "category": "restaurants",
+  "spent_at": "2026-10-05T09:31:12.359Z"
+}
+```
+
+Pydantic rejected `"restaurants"` because the valid literal is:
+
+```text
+restaurant
+```
+
+FastAPI returned a validation error containing:
+
+```text
+type: literal_error
+loc: ["body", "category"]
+```
+
+Meaning:
+
+- The problem is a literal validation error.
+- The error is inside the request body.
+- Specifically, the `category` field is invalid.
+
+---
+
+# Why try/except ValidationError Did Not Work
+
+My endpoint was:
+
+```python
+@app.post("/add_test")
+def add_expense(data: ExpensePydantic, db=Depends(get_db)):
+    try:
+        expense = Expenses(
+            amount=data.amount,
+            category=data.category,
+            spent_at=data.spent_at
+        )
+
+        db.add(expense)
+        db.commit()
+
+        return expense
+
+    except ValidationError as e:
+        print(e.errors())
+        return e.errors()
+```
+
+This did NOT catch the invalid `"restaurants"` request.
+
+Reason:
+
+**FastAPI validates the request body before entering the endpoint function.**
+
+Flow:
+
+```text
+HTTP request
+    ↓
+FastAPI
+    ↓
+Pydantic validation
+    ↓
+❌ validation fails
+    ↓
+RequestValidationError
+    ↓
+Endpoint never executes
+```
+
+Therefore the `try/except` inside the endpoint never gets a chance to run.
+
+---
+
+# RequestValidationError Handler
+
+I also added:
+
+```python
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": exc.body
+        },
+    )
+```
+
+This caused Postman to show both:
+
+```text
+detail
+body
+```
+
+because we explicitly returned both.
+
+`exc.errors()` contains the validation errors.
+
+`exc.body` contains the request that caused the error.
+
+We also discussed that adding:
+
+```python
+print("Validation error:", exc.errors())
+```
+
+inside this exception handler lets us log the error in the Uvicorn terminal.
+
+Important distinction:
+
+```text
+Pydantic ValidationError
+→ when manually constructing a Pydantic model
+
+FastAPI RequestValidationError
+→ when incoming HTTP request data fails FastAPI/Pydantic validation
+  before the endpoint executes
+```
+
+---
+
+# Important Architecture Lesson
+
+We clarified the separation between responsibilities:
+
+```text
+Pydantic
+---------
+API input/output shape
+Validation
+Serialization
+```
+
+```text
+SQLAlchemy
+-----------
+Python object ↔ database table
+Database queries
+Transactions
+Persistence
+```
+
+Pydantic does NOT automatically map data into the SQLAlchemy model.
+
+We explicitly create the SQLAlchemy object, for example:
+
+```python
+expense = Expenses(
+    amount=data.amount,
+    category=data.category,
+    spent_at=data.spent_at
+)
+```
+
+Then:
+
+```python
+db.add(expense)
+db.commit()
+```
+
+persists it.
+
+---
+
+# Product Direction for Phoenix
+
+The product is becoming more than simple CRUD.
+
+The UI will have a **chat interface** where the user talks to the LangGraph-based assistant.
+
+Examples:
+
+```text
+"Set my monthly budget to ₹30,000."
+
+"I spent ₹700 on groceries."
+
+"How much have I spent this month?"
+
+"How much did I spend on groceries?"
+
+"Am I over budget?"
+```
+
+The agent should be able to perform these actions through backend tools.
+
+The UI will also have a dashboard with visualizations.
+
+Planned dashboard ideas:
+
+### 1. Spending Over Time
+
+A graph showing expenses over time.
+
+Possible views:
+
+- month-to-month
+- year-to-year
+
+Preferably one graph with a switch/filter rather than many separate graphs.
+
+### 2. Category-wise Spending
+
+Show how much was spent across categories such as:
+
+```text
+restaurant
+groceries
+transportation
+shopping
+etc.
+```
+
+### 3. Top 5 Expenses
+
+Allow the user to select a category and see the top five expenses for that category.
+
+### 4. Current Month Budget Status
+
+A prominent UI block showing something like:
+
+```text
+Monthly Budget
+₹30,000
+
+Spent
+₹22,400
+
+Remaining
+₹7,600
+```
+
+If the user is over budget:
+
+```text
+Monthly Budget
+₹30,000
+
+Spent
+₹31,200
+
+Over Budget
+₹1,200
+```
+
+The frontend can display the status in green or red.
+
+Important design principle:
+
+**The backend calculates the truth; the frontend displays it.**
+
+The backend should return structured fields such as:
+
+```text
+monthly_limit
+total_spent
+remaining
+percentage_used
+is_over_budget
+```
+
+The UI should not independently calculate business logic.
+
+---
+
+# Budget Design Decision
+
+We decided NOT to create separate budgets for each expense category.
+
+Instead, Phoenix will have **one overall monthly spending limit**.
+
+Example:
+
+```text
+Monthly Budget = ₹30,000
+```
+
+Expenses might be:
+
+```text
+Groceries       ₹5,000
+Restaurant      ₹3,000
+Shopping        ₹4,000
+Travel          ₹2,000
+Entertainment   ₹1,000
+...
+```
+
+Categories are used for analysis, not separate budgets.
+
+---
+
+# Important Budget Data Principle
+
+We should NOT continuously subtract expenses from the budget row.
+
+For example, avoid:
+
+```text
+Budget starts at ₹30,000
+→ expense ₹500
+→ budget becomes ₹29,500
+→ expense ₹1,000
+→ budget becomes ₹28,500
+```
+
+Instead:
+
+```text
+Budget table stores:
+monthly_limit = ₹30,000
+
+Expense table stores:
+all actual expenses
+```
+
+Then derive:
+
+```text
+total_spent = SUM(expenses for current month)
+
+remaining = monthly_limit - total_spent
+```
+
+This keeps the database consistent.
+
+If an expense is deleted or updated, the spending total automatically changes based on actual expense records.
+
+---
+
+# Backend vs Agent Responsibilities
+
+We discussed that the LangGraph agent should NOT directly interact with PostgreSQL.
+
+The backend should own the database and business rules.
+
+The preferred architecture is:
+
+```text
+User
+  ↓
+LangGraph
+  ↓
+Budget Agent
+  ↓
+Tool
+  ↓
+FastAPI
+  ↓
+Business Logic
+  ↓
+SQLAlchemy
+  ↓
+PostgreSQL
+```
+
+The LLM/agent decides:
+
+> What does the user want?
+
+The backend decides:
+
+> What is actually true and what should happen?
+
+For example, the LLM should NOT be responsible for calculating:
+
+```text
+₹30,000 - ₹22,400
+```
+
+The backend should calculate:
+
+```text
+remaining = monthly_limit - total_spent
+```
+
+because this is deterministic business logic.
+
+The agent then explains the structured result naturally to the user.
+
+---
+
+# MCP Discussion
+
+We discussed whether LangGraph should use MCP.
+
+Current decision:
+
+**Do NOT build MCP yet.**
+
+First build normal LangGraph tools that use the backend capabilities.
+
+Possible tools later:
+
+```text
+set_monthly_budget()
+get_monthly_budget()
+add_expense()
+get_expenses()
+get_category_expenses()
+get_budget_status()
+```
+
+These tools could initially call our FastAPI backend.
+
+MCP can be reconsidered later if we have a real reason to expose the same capabilities in a standardized way to multiple AI clients or agents.
+
+Important principle:
+
+**MCP does not replace the backend/API.**
+
+Don't add:
+
+```text
+LangGraph → MCP → FastAPI → PostgreSQL
+```
+
+just because it looks more advanced.
+
+Architecture should solve a problem rather than demonstrate technologies.
+
+---
+
+# Current Recommended Roadmap
+
+This is the roadmap we agreed to follow:
+
+```text
+1. Finalize Expense categories ✅
+
+2. Build Budget model
+       ↓
+3. Build monthly budget operations
+       ↓
+4. Calculate monthly spending
+       ↓
+5. Calculate remaining / over-budget status
+       ↓
+6. Build analytics queries
+       ↓
+7. Define clean response models
+       ↓
+8. Expose useful capabilities as LangGraph tools
+```
+
+More detailed version:
+
+```text
+Expense
+   ↓
+Category validation ✅
+   ↓
+Budget SQLAlchemy model
+   ↓
+Budget table
+   ↓
+Create/update monthly limit
+   ↓
+Fetch current monthly budget
+   ↓
+Aggregate current month expenses
+   ↓
+Calculate remaining amount
+   ↓
+Detect over-budget
+   ↓
+Percentage of budget used
+   ↓
+Category-based expense queries
+   ↓
+Monthly/yearly analytics
+   ↓
+Top 5 expenses by category
+   ↓
+Clean Pydantic response schemas
+   ↓
+Clean FastAPI/service architecture
+   ↓
+LangGraph
+   ↓
+Budget tools
+   ↓
+Budget Agent
+   ↓
+Supervisor
+   ↓
+Later: MCP/RAG/Redis/Langfuse/etc.
+```
+
+---
+
+# Immediate Next Step
+
+The next thing we should do is:
+
+**Design the Budget model before writing code.**
+
+Likely starting structure:
+
+```text
+budgets
+---------
+id
+monthly_limit
+month
+year
+```
+
+Before implementing it, we should discuss:
+
+- Why we need each column.
+- Whether `month` and `year` should be stored separately or represented another way.
+- Whether only one budget should exist for a month.
+- How we prevent accidentally having multiple budgets for the same month.
+- What happens when a new month begins.
+- How the budget will relate to expenses.
+
+Then we implement it incrementally and test it.
+
+## Core Project Phoenix Principle
+
+I want the project to teach me proper backend engineering rather than just give me a working AI demo.
+
+The main principle is:
+
+**LLM decides what action to take. Backend decides what is true.**
+
+And the current checkpoint is:
+
+**Expense CRUD + validation is working. Now build the Budget domain and analytics foundation before introducing LangGraph.**
