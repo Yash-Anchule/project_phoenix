@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models import Expenses
+from app.services import analytics_services
 
 router = APIRouter(
     prefix="/analytics",
@@ -17,15 +18,16 @@ def specific_month_expenses(
     year: int = Path(ge=2026, le=9999),
     db: Session = Depends(get_db)
 ):
-    start_date = datetime(year, month, 1)
-    end_date = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
-
-    result = db.query(func.sum(Expenses.amount)).filter(
-        Expenses.spent_at >= start_date, 
-        Expenses.spent_at < end_date
-    ).scalar() or 0
-
-    return {"month": month, "year": year, "total_expenses": result}
+    # start_date = datetime(year, month, 1)
+    # end_date = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    #
+    # result = db.query(func.sum(Expenses.amount)).filter(
+    #     Expenses.spent_at >= start_date, 
+    #     Expenses.spent_at < end_date
+    # ).scalar() or 0
+    #
+    # return {"month": month, "year": year, "total_expenses": result}
+    return analytics_services.get_monthly_expenses(month, year, db)
 
 @router.get("/category-spending/{month}/{year}")
 def category_spending(
@@ -34,30 +36,31 @@ def category_spending(
     sort_by_highest: bool = Query(True, description="Sort categories by highest spend first"),
     db: Session = Depends(get_db)
 ):
-    start_date = datetime(year, month, 1)
-    end_date = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
-
-    total_amount = func.sum(Expenses.amount)
-    query = (
-        db.query(Expenses.category, total_amount)
-        .filter(Expenses.spent_at >= start_date, Expenses.spent_at < end_date)
-        .group_by(Expenses.category)
-    )
-
-    if sort_by_highest:
-        query = query.order_by(total_amount.desc())
-    else:
-        query = query.order_by(Expenses.category.asc())
-
-    result = query.all()
-    return {
-        "month": month,
-        "year": year,
-        "category_spending": [
-            {"category": category, "total": total}
-            for category, total in result
-        ]
-    }
+    # start_date = datetime(year, month, 1)
+    # end_date = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    #
+    # total_amount = func.sum(Expenses.amount)
+    # query = (
+    #     db.query(Expenses.category, total_amount)
+    #     .filter(Expenses.spent_at >= start_date, Expenses.spent_at < end_date)
+    #     .group_by(Expenses.category)
+    # )
+    #
+    # if sort_by_highest:
+    #     query = query.order_by(total_amount.desc())
+    # else:
+    #     query = query.order_by(Expenses.category.asc())
+    #
+    # result = query.all()
+    # return {
+    #     "month": month,
+    #     "year": year,
+    #     "category_spending": [
+    #         {"category": category, "total": total}
+    #         for category, total in result
+    #     ]
+    # }
+    return analytics_services.get_category_spending(month, year, sort_by_highest, db)
 
 @router.get("/top-expenses/{month}/{year}")
 def top_expenses(
@@ -67,23 +70,24 @@ def top_expenses(
     category: str | None = Query(None, description="Optional category to filter by"),
     db: Session = Depends(get_db)
 ):
-    start_date = datetime(year, month, 1)
-    end_date = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
-
-    query = db.query(Expenses).filter(
-        Expenses.spent_at >= start_date,
-        Expenses.spent_at < end_date
-    )
-
-    if category:
-        query = query.filter(Expenses.category == category)
-
-    result = query.order_by(Expenses.amount.desc()).limit(top_n).all()
-
-    return {
-        "month": month,
-        "year": year,
-        "category": category,
-        "count": len(result),
-        "expenses": result
-    }
+    # start_date = datetime(year, month, 1)
+    # end_date = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    #
+    # query = db.query(Expenses).filter(
+    #     Expenses.spent_at >= start_date,
+    #     Expenses.spent_at < end_date
+    # )
+    #
+    # if category:
+    #     query = query.filter(Expenses.category == category)
+    #
+    # result = query.order_by(Expenses.amount.desc()).limit(top_n).all()
+    #
+    # return {
+    #     "month": month,
+    #     "year": year,
+    #     "category": category,
+    #     "count": len(result),
+    #     "expenses": result
+    # }
+    return analytics_services.get_top_expenses(month, year, top_n, category, db)
